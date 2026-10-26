@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom'
 import { GithubIcon } from './GithubIcon'
 import { Logo } from './Logo'
 
@@ -19,9 +20,9 @@ export function Footer() {
         </div>
 
         <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-muted">
-          <a className="transition hover:text-white" href="#how-it-works">
+          <Link className="transition hover:text-white" to="/#how-it-works">
             How it works
-          </a>
+          </Link>
           <a className="transition hover:text-white" href="/api/repos?range=7d" target="_blank" rel="noreferrer">
             JSON API
           </a>

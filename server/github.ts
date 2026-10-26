@@ -43,7 +43,7 @@ interface GraphQLRepository {
   issues: { totalCount: number }
   primaryLanguage: { name: string } | null
   createdAt: string
-  pushedAt: string
+  pushedAt: string | null
   owner: { avatarUrl: string }
   url: string
   repositoryTopics: { nodes: { topic: { name: string } }[] }
@@ -112,10 +112,11 @@ async function graphql<T>(query: string, variables: Record<string, string>): Pro
 }
 
 export async function fetchRepo(fullName: string): Promise<RepoRecord> {
-  const [owner, name] = fullName.split('/')
-  if (!owner || !name) {
+  const parts = fullName.split('/')
+  if (parts.length !== 2 || !parts[0] || !parts[1]) {
     throw new Error(`Invalid repository name: ${fullName}`)
   }
+  const [owner, name] = parts
 
   const data = await graphql<{ repository: GraphQLRepository | null }>(REPO_QUERY, {
     owner,
@@ -127,12 +128,20 @@ export async function fetchRepo(fullName: string): Promise<RepoRecord> {
     throw new Error(`Repository not found: ${fullName}`)
   }
 
+  // The API resolves renames to the canonical name. Store and return that name,
+  // otherwise the detail route and repo row disagree after a repository rename.
+  const canonicalParts = repo.nameWithOwner.split('/')
+  if (canonicalParts.length !== 2 || !canonicalParts[0] || !canonicalParts[1]) {
+    throw new Error(`GitHub returned an invalid repository name: ${repo.nameWithOwner}`)
+  }
+  const [canonicalOwner, canonicalName] = canonicalParts
+
   const now = new Date().toISOString()
 
   return {
     id: repo.databaseId ?? hashId(repo.nameWithOwner),
-    owner,
-    name,
+    owner: canonicalOwner,
+    name: canonicalName,
     fullName: repo.nameWithOwner,
     description: repo.description,
     language: repo.primaryLanguage?.name ?? null,

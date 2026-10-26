@@ -9,9 +9,18 @@ import {
   type RepoRow,
   type SnapshotRow,
 } from './db.ts'
+import {
+  addDays,
+  normalizeDataMode,
+  rangeStartDay,
+  snapshotGain24h,
+  sumRange,
+  utcToday,
+  type DataMode,
+} from './metrics.ts'
 
+export type { DataMode } from './metrics.ts'
 export type RangeKey = '24h' | '7d' | '30d'
-export type DataMode = 'live' | 'demo'
 export type SortMode = 'momentum' | 'breakout'
 
 const RANGE_DAYS: Record<RangeKey, number> = {
@@ -19,6 +28,8 @@ const RANGE_DAYS: Record<RangeKey, number> = {
   '7d': 7,
   '30d': 30,
 }
+
+const SNAPSHOT_LOOKBACK_MS = 30 * 24 * 60 * 60 * 1000
 
 export interface LeaderboardItem {
   id: number
@@ -84,22 +95,8 @@ export interface StatsResponse {
   dataMode: DataMode
 }
 
-function dayString(date: Date): string {
-  return date.toISOString().slice(0, 10)
-}
-
-function today(): string {
-  return dayString(new Date())
-}
-
-function addDays(day: string, delta: number): string {
-  const date = new Date(`${day}T00:00:00.000Z`)
-  date.setUTCDate(date.getUTCDate() + delta)
-  return dayString(date)
-}
-
 function getDataMode(): DataMode {
-  return getMeta('data_mode') === 'demo' ? 'demo' : 'live'
+  return normalizeDataMode(getMeta('data_mode'))
 }
 
 function getUpdatedAt(): string | null {
@@ -132,35 +129,30 @@ function groupSnapshots(rows: SnapshotRow[]): Map<number, SnapshotRow[]> {
   return grouped
 }
 
-function sumRange(days: Map<string, number>, sinceDay: string): number {
-  let total = 0
-  for (const [day, gained] of days) {
-    if (day >= sinceDay) total += gained
-  }
-  return total
-}
-
 function gainedFor(
-  repoId: number,
   range: RangeKey,
   days: Map<string, number>,
-  snapshots: Map<number, SnapshotRow[]>,
+  snapshots: readonly SnapshotRow[],
+  dataMode: DataMode,
+  currentDay: string,
 ): number {
   if (range === '24h') {
-    const rows = snapshots.get(repoId) ?? []
-    if (rows.length >= 2) {
-      return rows[rows.length - 1].stars - rows[0].stars
-    }
-    return days.get(today()) ?? 0
+    // Demo rows are generated history. Never mix them with real snapshot deltas.
+    if (dataMode === 'demo') return days.get(currentDay) ?? 0
+    return snapshotGain24h(snapshots, days.get(currentDay) ?? 0)
   }
 
-  return sumRange(days, addDays(today(), -(RANGE_DAYS[range] - 1)))
+  return sumRange(days, rangeStartDay(currentDay, RANGE_DAYS[range]))
 }
 
-function buildSparkline(days: Map<string, number>, length: number): number[] {
+function buildSparkline(
+  days: Map<string, number>,
+  length: number,
+  currentDay: string,
+): number[] {
   const points: number[] = []
   for (let offset = length - 1; offset >= 0; offset -= 1) {
-    points.push(days.get(addDays(today(), -offset)) ?? 0)
+    points.push(days.get(addDays(currentDay, -offset)) ?? 0)
   }
   return points
 }
@@ -185,12 +177,15 @@ export function getLeaderboard(options: {
   const language = options.language && options.language !== 'All' ? options.language : null
   const q = (options.q ?? '').trim().toLowerCase()
 
+  const currentDay = utcToday()
+  const dataMode = getDataMode()
   const repos = getTrackedRepos()
-  const dailyRows = getDailyRows(addDays(today(), -30))
+  const dailyRows = getDailyRows(rangeStartDay(currentDay, RANGE_DAYS['30d']))
   const daily = groupDaily(dailyRows)
-  const snapshots = groupSnapshots(
-    getSnapshotsSince(new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()),
-  )
+  const snapshots =
+    dataMode === 'live'
+      ? groupSnapshots(getSnapshotsSince(new Date(Date.now() - SNAPSHOT_LOOKBACK_MS).toISOString()))
+      : new Map<number, SnapshotRow[]>()
 
   const languages = [...new Set(repos.map((repo) => repo.language).filter((value): value is string => Boolean(value)))]
     .sort((a, b) => a.localeCompare(b))
@@ -206,7 +201,13 @@ export function getLeaderboard(options: {
     })
     .map((repo) => {
       const repoDays = daily.get(repo.id) ?? new Map<string, number>()
-      const gained = gainedFor(repo.id, range, repoDays, snapshots)
+      const gained = gainedFor(
+        range,
+        repoDays,
+        snapshots.get(repo.id) ?? [],
+        dataMode,
+        currentDay,
+      )
       const growth = repo.stars > 0 ? (gained / repo.stars) * 100 : 0
       return {
         id: repo.id,
@@ -221,7 +222,7 @@ export function getLeaderboard(options: {
         growth,
         perDay: gained / RANGE_DAYS[range],
         rank: 0,
-        sparkline: buildSparkline(repoDays, range === '30d' ? 30 : 14),
+        sparkline: buildSparkline(repoDays, range === '30d' ? 30 : 14, currentDay),
         avatarUrl: repo.avatar_url,
         htmlUrl: repo.html_url,
       } satisfies LeaderboardItem
@@ -242,7 +243,7 @@ export function getLeaderboard(options: {
     range,
     sort,
     updatedAt: getUpdatedAt(),
-    dataMode: getDataMode(),
+    dataMode,
     totalTracked: repos.length,
     languages,
     repos: items,
@@ -256,21 +257,24 @@ export function getRepoDetail(
   const repo = getRepoByFullName(fullName)
   if (!repo) return null
 
-  const dailyRows = getDailyRows(addDays(today(), -30))
+  const currentDay = utcToday()
+  const dataMode = getDataMode()
+  const dailyRows = getDailyRows(rangeStartDay(currentDay, RANGE_DAYS['30d']))
   const daily = groupDaily(dailyRows)
   const repoDays = daily.get(repo.id) ?? new Map<string, number>()
 
   const allDays = Array.from({ length: 30 }, (_, index) =>
-    addDays(today(), -(29 - index)),
+    addDays(currentDay, -(29 - index)),
   )
+
+  const snapshots = getSnapshotsSince(new Date(Date.now() - SNAPSHOT_LOOKBACK_MS).toISOString())
+  const repoSnapshots = snapshots.filter((snapshot) => snapshot.repo_id === repo.id)
 
   let trackingSince: string | null = repoDays.size
     ? [...repoDays.keys()].sort()[0]
     : null
 
-  const snapshots = getSnapshotsSince(new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString())
-  for (const snapshot of snapshots) {
-    if (snapshot.repo_id !== repo.id) continue
+  for (const snapshot of repoSnapshots) {
     const snapshotDay = snapshot.captured_at.slice(0, 10)
     if (!trackingSince || snapshotDay < trackingSince) trackingSince = snapshotDay
   }
@@ -290,16 +294,9 @@ export function getRepoDetail(
     }
   }
 
-  const gained24h = gainedFor(
-    repo.id,
-    '24h',
-    repoDays,
-    groupSnapshots(
-      getSnapshotsSince(new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()),
-    ),
-  )
-  const gained7d = sumRange(repoDays, addDays(today(), -6))
-  const gained30d = sumRange(repoDays, addDays(today(), -29))
+  const gained24h = gainedFor('24h', repoDays, repoSnapshots, dataMode, currentDay)
+  const gained7d = sumRange(repoDays, rangeStartDay(currentDay, RANGE_DAYS['7d']))
+  const gained30d = sumRange(repoDays, rangeStartDay(currentDay, RANGE_DAYS['30d']))
 
   const ranking = getLeaderboard({ range, language: 'All', q: '' })
   const rank = ranking.repos.find((item) => item.id === repo.id)?.rank ?? 0
@@ -320,7 +317,7 @@ export function getRepoDetail(
       growth: repo.stars > 0 ? (gainedInRange / repo.stars) * 100 : 0,
       perDay: gainedInRange / RANGE_DAYS[range],
       rank,
-      sparkline: buildSparkline(repoDays, range === '30d' ? 30 : 14),
+      sparkline: buildSparkline(repoDays, range === '30d' ? 30 : 14, currentDay),
       avatarUrl: repo.avatar_url,
       htmlUrl: repo.html_url,
       openIssues: repo.open_issues,
@@ -333,23 +330,24 @@ export function getRepoDetail(
       gained24h,
       gained7d,
       gained30d,
-      perDay: gained7d / 7,
+      perDay: gained7d / RANGE_DAYS['7d'],
       rank,
       totalTracked: ranking.totalTracked,
     },
-    dataMode: getDataMode(),
+    dataMode,
     updatedAt: getUpdatedAt(),
   }
 }
 
 export function getStats(): StatsResponse {
+  const currentDay = utcToday()
   const repos = getTrackedRepos()
-  const dailyRows = getDailyRows(addDays(today(), -7))
+  const dailyRows = getDailyRows(rangeStartDay(currentDay, RANGE_DAYS['7d']))
   const totalGained7d = dailyRows.reduce((total, row) => total + row.gained, 0)
-  const allDaily = getDailyRows(addDays(today(), -30))
+  const allDaily = getDailyRows(rangeStartDay(currentDay, RANGE_DAYS['30d']))
   const allDays = [...new Set(allDaily.map((row) => row.day))].sort()
   const snapshots = getSnapshotsSince(
-    new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),
+    new Date(Date.now() - SNAPSHOT_LOOKBACK_MS).toISOString(),
   )
   const snapshotDays = snapshots.map((snapshot) => snapshot.captured_at.slice(0, 10)).sort()
   const trackingSince = [allDays[0], snapshotDays[0]].filter(Boolean).sort()[0] ?? null

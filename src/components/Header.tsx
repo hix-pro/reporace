@@ -20,12 +20,12 @@ export function Header() {
           >
             Leaderboard
           </Link>
-          <a
-            href="#how-it-works"
+          <Link
+            to="/#how-it-works"
             className="focus-ring hidden rounded-lg px-3 py-2 transition hover:bg-white/5 hover:text-white md:block"
           >
             How it works
-          </a>
+          </Link>
           <a
             href="/api/repos?range=7d"
             className="focus-ring hidden rounded-lg px-3 py-2 font-mono text-xs transition hover:bg-white/5 hover:text-white sm:block"

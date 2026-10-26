@@ -37,8 +37,9 @@ export function growthPercent(gained: number, stars: number): number {
 
 export function timeAgo(iso: string | null): string {
   if (!iso) return 'not yet'
-  const date = new Date(iso)
-  const seconds = Math.max(1, Math.floor((Date.now() - date.getTime()) / 1000))
+  const timestamp = new Date(iso).getTime()
+  if (!Number.isFinite(timestamp)) return 'unknown'
+  const seconds = Math.max(1, Math.floor((Date.now() - timestamp) / 1000))
   if (seconds < 60) return `${seconds}s ago`
   const minutes = Math.floor(seconds / 60)
   if (minutes < 60) return `${minutes}m ago`

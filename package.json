@@ -22,6 +22,7 @@
     "build": "tsc --noEmit && vite build",
     "start": "NODE_ENV=production tsx server/index.ts",
     "typecheck": "tsc --noEmit",
+    "test": "tsx --test server/velocity.test.ts",
     "seed": "tsx scripts/seed.ts",
     "demo": "tsx scripts/demo-data.ts",
     "collect": "tsx scripts/collect.ts",

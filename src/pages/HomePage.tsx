@@ -16,6 +16,26 @@ import type {
   StatsResponse,
 } from '../types'
 
+function LoadFailure({ message, onRetry }: { message: string; onRetry: () => void }) {
+  return (
+    <div className="card mt-4 flex flex-col items-center justify-center px-6 py-16 text-center">
+      <span className="grid h-12 w-12 place-items-center rounded-2xl border border-orange/20 bg-orange/[0.06] text-orange">
+        <TriangleAlert className="h-5 w-5" />
+      </span>
+      <h3 className="mt-4 text-sm font-semibold text-white">Could not load the leaderboard</h3>
+      <p className="mt-1 max-w-sm text-xs leading-relaxed text-muted">{message}</p>
+      <button
+        type="button"
+        onClick={onRetry}
+        className="focus-ring mt-5 inline-flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs font-semibold text-white transition hover:border-orange/40 hover:text-orange"
+      >
+        <RefreshCw className="h-3.5 w-3.5" />
+        Retry
+      </button>
+    </div>
+  )
+}
+
 export function HomePage() {
   const [range, setRange] = useState<RangeKey>('7d')
   const [sort, setSort] = useState<SortMode>('momentum')
@@ -71,7 +91,7 @@ export function HomePage() {
   const repos = data?.repos ?? []
   const topRepos = repos.slice(0, 3)
   const languages = data?.languages ?? []
-  const dataMode = data?.dataMode ?? 'live'
+  const dataMode = data?.dataMode ?? stats?.dataMode ?? null
   const updatedAt = data?.updatedAt ?? null
   const totalTracked = data?.totalTracked ?? stats?.totalTracked ?? 0
 
@@ -103,7 +123,7 @@ export function HomePage() {
           isFetching={isFetching && Boolean(data)}
         />
 
-        {error && (
+        {error && data !== null && (
           <div className="mb-4 flex flex-col gap-3 rounded-xl border border-orange/25 bg-orange/[0.06] px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-start gap-2.5">
               <TriangleAlert className="mt-0.5 h-4 w-4 shrink-0 text-orange" />
@@ -150,10 +170,14 @@ export function HomePage() {
         </div>
 
         {data === null ? (
-          <>
-            <PodiumSkeleton />
-            <TableSkeleton />
-          </>
+          error ? (
+            <LoadFailure message={error} onRetry={() => setReloadKey((value) => value + 1)} />
+          ) : (
+            <>
+              <PodiumSkeleton />
+              <TableSkeleton />
+            </>
+          )
         ) : repos.length === 0 ? (
           <EmptyState onClear={clearFilters} />
         ) : (

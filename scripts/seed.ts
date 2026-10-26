@@ -3,7 +3,9 @@ import { readFileSync } from 'node:fs'
 import path from 'node:path'
 import { fetchRepos } from '../server/github.ts'
 import {
+  clearDailyGains,
   countRepos,
+  getMeta,
   recordSnapshot,
   setMeta,
   transaction,
@@ -17,13 +19,26 @@ const fullNames = JSON.parse(readFileSync(seedPath, 'utf8')) as string[]
 console.log(`Seeding ${fullNames.length} repositories from ${seedPath}`)
 
 const { repos, skipped } = await fetchRepos(fullNames, 5)
+
+if (!repos.length) {
+  console.error('No repositories were seeded. Existing data was left untouched.')
+  process.exit(1)
+}
+
 const capturedAt = utcStamp()
+const replacingDemo = getMeta('data_mode') === 'demo'
 
 transaction(() => {
+  // A demo database must never be relabeled as live with generated history intact.
+  if (replacingDemo) clearDailyGains()
+
   for (const repo of repos) {
     upsertRepo(repo)
     recordSnapshot(repo.id, repo.stars, repo.forks, capturedAt)
   }
+
+  setMeta('data_mode', 'live')
+  setMeta('seeded_at', capturedAt)
 })
 
 if (!countRepos()) {
@@ -31,10 +46,10 @@ if (!countRepos()) {
   process.exit(1)
 }
 
-setMeta('data_mode', 'live')
-setMeta('seeded_at', capturedAt)
-
 console.log(`Seeded ${repos.length} repositories (${countRepos()} total tracked).`)
+if (replacingDemo) {
+  console.log('Demo history cleared. Live mode starts from this snapshot.')
+}
 if (skipped.length) {
   console.log(`Skipped ${skipped.length}:`)
   for (const item of skipped) {

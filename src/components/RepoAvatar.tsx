@@ -1,5 +1,4 @@
 import { useState } from 'react'
-import { languageColor } from '../lib/format'
 
 export function RepoAvatar({
   src,
@@ -12,10 +11,12 @@ export function RepoAvatar({
   size?: number
   className?: string
 }) {
-  const [failed, setFailed] = useState(false)
+  const [failedSrc, setFailedSrc] = useState<string | null>(null)
   const initials = name.slice(0, 1).toUpperCase()
 
-  if (!src || failed) {
+  // Track the URL that failed rather than a boolean, so a new avatar is retried
+  // when the component is reused for another repository.
+  if (!src || failedSrc === src) {
     return (
       <span
         className={`grid shrink-0 place-items-center rounded-xl border border-white/10 bg-white/[0.04] font-mono text-sm font-bold text-white ${className}`}
@@ -34,7 +35,7 @@ export function RepoAvatar({
       width={size}
       height={size}
       loading="lazy"
-      onError={() => setFailed(true)}
+      onError={() => setFailedSrc(src)}
       className={`shrink-0 rounded-xl border border-white/10 bg-white/[0.04] object-cover ${className}`}
       style={{ width: size, height: size }}
     />

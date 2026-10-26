@@ -169,7 +169,15 @@
   }
 }
 
+#how-it-works {
+  scroll-margin-top: 5rem;
+}
+
 @media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
   .animate-marquee,
   .animate-pulse-dot,
   .animate-rise {

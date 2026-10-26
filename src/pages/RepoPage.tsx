@@ -53,7 +53,13 @@ function ChartTooltip(props: any) {
       <p className="stat-number mt-1 text-sm font-semibold text-white">
         {formatFullNumber(point.stars)} stars
       </p>
-      <p className="stat-number text-[11px] text-lime">+{formatFullNumber(point.gained)} that day</p>
+      <p
+        className={`stat-number text-[11px] ${
+          point.gained > 0 ? 'text-lime' : point.gained < 0 ? 'text-orange' : 'text-muted'
+        }`}
+      >
+        {formatDelta(point.gained)} that day
+      </p>
     </div>
   )
 }
@@ -117,8 +123,9 @@ export function RepoPage() {
   const [searchParams, setSearchParams] = useSearchParams()
   const rawRange = searchParams.get('range')
   const range: RangeKey = rawRange === '24h' || rawRange === '30d' ? rawRange : '7d'
+  const requestKey = `${owner}/${name}?range=${range}`
 
-  const [data, setData] = useState<RepoDetailResponse | null>(null)
+  const [loaded, setLoaded] = useState<{ key: string; data: RepoDetailResponse } | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [chartMode, setChartMode] = useState<ChartMode>('stars')
   const [reloadKey, setReloadKey] = useState(0)
@@ -131,14 +138,19 @@ export function RepoPage() {
       `/api/repos/${encodeURIComponent(owner)}/${encodeURIComponent(name)}?range=${range}`,
       controller.signal,
     )
-      .then((response) => setData(response))
+      .then((response) => {
+        if (!controller.signal.aborted) setLoaded({ key: requestKey, data: response })
+      })
       .catch((requestError: unknown) => {
         if (requestError instanceof DOMException && requestError.name === 'AbortError') return
         setError(requestError instanceof Error ? requestError.message : 'Could not load repository')
       })
 
     return () => controller.abort()
-  }, [owner, name, range, reloadKey])
+  }, [owner, name, range, reloadKey, requestKey])
+
+  // Never pair a new range or repository with the previous response.
+  const data = loaded?.key === requestKey ? loaded.data : null
 
   function setRange(next: RangeKey) {
     const params = new URLSearchParams(searchParams)
@@ -179,12 +191,12 @@ export function RepoPage() {
 
   const { repo, history, stats } = data
   const hasHistory = history.length > 1
-  const maxGain = Math.max(stats.gained24h, stats.gained7d, stats.gained30d, 1)
   const velocity = [
     { label: '24 hours', value: stats.gained24h },
     { label: '7 days', value: stats.gained7d },
     { label: '30 days', value: stats.gained30d },
   ]
+  const maxMagnitude = Math.max(...velocity.map((item) => Math.abs(item.value)), 1)
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
@@ -198,6 +210,25 @@ export function RepoPage() {
         </Link>
         <DataBadge mode={data.dataMode} updatedAt={data.updatedAt} />
       </div>
+
+      {error && (
+        <div className="mt-4 flex flex-col gap-3 rounded-xl border border-orange/25 bg-orange/[0.06] px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-start gap-2.5">
+            <TriangleAlert className="mt-0.5 h-4 w-4 shrink-0 text-orange" />
+            <div>
+              <p className="text-xs font-semibold text-white">Could not refresh this repository</p>
+              <p className="mt-0.5 text-xs text-muted">{error}</p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => setReloadKey((value) => value + 1)}
+            className="focus-ring self-start rounded-lg border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs font-semibold text-white transition hover:border-orange/40 hover:text-orange sm:self-auto"
+          >
+            Retry
+          </button>
+        </div>
+      )}
 
       <section className="relative mt-6 overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-b from-white/[0.04] to-transparent p-5 sm:p-7">
         <div className="pointer-events-none absolute -right-20 -top-24 h-64 w-64 rounded-full bg-lime/[0.06] blur-3xl" />
@@ -419,26 +450,39 @@ export function RepoPage() {
               <Activity className="h-4 w-4 text-lime" />
             </div>
             <div className="mt-5 space-y-4">
-              {velocity.map((item) => (
-                <div key={item.label}>
-                  <div className="flex items-center justify-between text-[11px]">
-                    <span className="text-muted">{item.label}</span>
-                    <span className="stat-number font-semibold text-white">
-                      {formatDelta(item.value)}
-                    </span>
+              {velocity.map((item) => {
+                const isNegative = item.value < 0
+                const width =
+                  item.value === 0 ? 0 : Math.max(2, (Math.abs(item.value) / maxMagnitude) * 100)
+                return (
+                  <div key={item.label}>
+                    <div className="flex items-center justify-between text-[11px]">
+                      <span className="text-muted">{item.label}</span>
+                      <span
+                        className={`stat-number font-semibold ${
+                          isNegative ? 'text-orange' : 'text-white'
+                        }`}
+                      >
+                        {formatDelta(item.value)}
+                      </span>
+                    </div>
+                    <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-white/[0.06]">
+                      <div
+                        className={`h-full rounded-full ${
+                          isNegative
+                            ? 'bg-gradient-to-r from-orange/50 to-orange'
+                            : 'bg-gradient-to-r from-lime/50 to-lime'
+                        }`}
+                        style={{ width: `${width}%` }}
+                      />
+                    </div>
                   </div>
-                  <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-white/[0.06]">
-                    <div
-                      className="h-full rounded-full bg-gradient-to-r from-lime/50 to-lime"
-                      style={{ width: `${Math.max(3, (item.value / maxGain) * 100)}%` }}
-                    />
-                  </div>
-                </div>
-              ))}
+                )
+              })}
             </div>
             <p className="mt-5 border-t border-white/[0.06] pt-3 text-[10px] leading-relaxed text-muted-2">
               Velocity is the net change in star count between snapshots. Unstars can reduce the
-              total.
+              total; orange bars mark a net loss.
             </p>
           </section>
 

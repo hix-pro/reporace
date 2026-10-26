@@ -10,7 +10,11 @@ import {
 } from './velocity.ts'
 
 const app = express()
-const port = Number(process.env.PORT ?? 8787)
+const configuredPort = Number(process.env.PORT ?? 8787)
+const port =
+  Number.isInteger(configuredPort) && configuredPort > 0 && configuredPort < 65536
+    ? configuredPort
+    : 8787
 const ranges = new Set<RangeKey>(['24h', '7d', '30d'])
 
 app.disable('x-powered-by')

@@ -27,7 +27,13 @@ export function Ticker({
               >
                 <span className="text-muted-2">#{String(repo.rank).padStart(2, '0')}</span>
                 <span className="text-white/75">{repo.fullName}</span>
-                <span className="text-lime">
+                <span
+                  className={
+                    (sort === 'breakout' ? repo.growth : repo.gained) >= 0
+                      ? 'text-lime'
+                      : 'text-orange'
+                  }
+                >
                   {sort === 'breakout' ? formatPercent(repo.growth) : formatDelta(repo.gained)}
                 </span>
                 <span className="text-muted-2">

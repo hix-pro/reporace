@@ -32,7 +32,7 @@ export function Controls({
   onQueryChange: (value: string) => void
   total: number
   updatedAt: string | null
-  dataMode: DataMode
+  dataMode: DataMode | null
   isFetching: boolean
 }) {
   return (

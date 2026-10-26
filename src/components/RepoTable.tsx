@@ -52,6 +52,9 @@ export function RepoTable({
 
       <div className="divide-y divide-white/[0.06]">
         {repos.map((repo) => {
+          const value = sort === 'breakout' ? repo.growth : repo.gained
+          const valueTone =
+            value > 0 ? 'text-lime' : value < 0 ? 'text-orange' : 'text-muted'
           return (
             <Link
               key={repo.id}
@@ -89,7 +92,7 @@ export function RepoTable({
               </div>
 
               <div className="text-right">
-                <p className="stat-number text-[12px] font-semibold text-lime">
+                <p className={`stat-number text-[12px] font-semibold ${valueTone}`}>
                   {sort === 'breakout' ? formatPercent(repo.growth) : formatDelta(repo.gained)}
                 </p>
                 <p className="stat-number text-[10px] text-muted-2">
@@ -108,7 +111,7 @@ export function RepoTable({
                   data={repo.sparkline}
                   width={96}
                   height={26}
-                  positive={repo.gained >= 0}
+                  positive={value >= 0}
                 />
               </div>
             </Link>

@@ -23,6 +23,9 @@ export function Podium({ repos, sort = 'momentum' }: { repos: LeaderboardItem[];
     <div className="mt-6 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
       {repos.slice(0, 3).map((repo, index) => {
         const isLeader = index === 0
+        const value = sort === 'breakout' ? repo.growth : repo.gained
+        const valueTone =
+          value > 0 ? 'text-lime' : value < 0 ? 'text-orange' : 'text-muted'
         return (
           <Link
             key={repo.id}
@@ -51,7 +54,7 @@ export function Podium({ repos, sort = 'momentum' }: { repos: LeaderboardItem[];
                 </p>
               </div>
               <div className="text-right">
-                <p className="stat-number text-xl font-bold text-lime">
+                <p className={`stat-number text-xl font-bold ${valueTone}`}>
                   {sort === 'breakout' ? formatPercent(repo.growth) : formatDelta(repo.gained)}
                 </p>
                 <p className="text-[11px] text-muted">
@@ -61,7 +64,7 @@ export function Podium({ repos, sort = 'momentum' }: { repos: LeaderboardItem[];
                     </>
                   ) : (
                     <>
-                      stars · <span className="text-lime/80">{formatPercent(repo.growth)}</span>
+                      stars · <span className={valueTone}>{formatPercent(repo.growth)}</span>
                     </>
                   )}
                 </p>
@@ -111,7 +114,7 @@ export function Podium({ repos, sort = 'momentum' }: { repos: LeaderboardItem[];
                 </div>
               </div>
               <div className="hidden lg:block">
-                <Sparkline data={repo.sparkline} width={90} height={30} />
+                <Sparkline data={repo.sparkline} width={90} height={30} positive={value >= 0} />
               </div>
             </div>
 

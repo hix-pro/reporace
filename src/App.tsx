@@ -1,5 +1,5 @@
-import { lazy, Suspense } from 'react'
-import { Link, Route, Routes } from 'react-router-dom'
+import { lazy, Suspense, useEffect } from 'react'
+import { Link, Route, Routes, useLocation } from 'react-router-dom'
 import { Footer } from './components/Footer'
 import { Header } from './components/Header'
 import { HomePage } from './pages/HomePage'
@@ -7,6 +7,23 @@ import { HomePage } from './pages/HomePage'
 const RepoPage = lazy(() =>
   import('./pages/RepoPage').then((module) => ({ default: module.RepoPage })),
 )
+
+function ScrollManager() {
+  const { pathname, hash } = useLocation()
+
+  useEffect(() => {
+    if (hash) {
+      const id = decodeURIComponent(hash.slice(1))
+      const frame = window.requestAnimationFrame(() => {
+        document.getElementById(id)?.scrollIntoView({ block: 'start' })
+      })
+      return () => window.cancelAnimationFrame(frame)
+    }
+    window.scrollTo(0, 0)
+  }, [pathname, hash])
+
+  return null
+}
 
 function RepoFallback() {
   return (
@@ -47,6 +64,7 @@ function NotFound() {
 export default function App() {
   return (
     <div className="flex min-h-screen flex-col">
+      <ScrollManager />
       <Header />
       <main className="flex-1">
         <Routes>

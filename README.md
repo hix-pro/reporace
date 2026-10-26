@@ -106,6 +106,7 @@ So RepoRace **collects its own history**. The first collection gives you a basel
 | `npm run demo` | Replace daily history with 30 days of demo data |
 | `npm run collect` | Clear demo history and capture a live snapshot |
 | `npm run build` | Type-check and build the dashboard |
+| `npm test` | Run the velocity and data-mode regression tests |
 | `npm start` | Serve the built dashboard + API on port 8787 |
 | `npm run typecheck` | TypeScript only |
 | `npm run db:reset` | Delete the local database |

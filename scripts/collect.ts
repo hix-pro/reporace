@@ -17,28 +17,35 @@ if (!tracked.length) {
   process.exit(1)
 }
 
-if (getMeta('data_mode') === 'demo') {
-  clearDailyGains()
-  setMeta('data_mode', 'live')
-  console.log('Demo history cleared. Starting live collection.')
-}
-
 const fullNames = tracked.map((repo) => repo.full_name)
 console.log(`Collecting snapshots for ${fullNames.length} repositories...`)
 
 const { repos, skipped } = await fetchRepos(fullNames, 5)
+
+if (!repos.length) {
+  console.error('No snapshots collected. Existing data was left untouched.')
+  process.exit(1)
+}
+
 const capturedAt = utcStamp()
+const replacingDemo = getMeta('data_mode') === 'demo'
 
 transaction(() => {
+  // Clear generated history only after at least one real snapshot succeeded.
+  if (replacingDemo) clearDailyGains()
+
   for (const repo of repos) {
     upsertRepo(repo)
     recordSnapshot(repo.id, repo.stars, repo.forks, capturedAt)
   }
+
+  setMeta('data_mode', 'live')
+  setMeta('last_collection', capturedAt)
 })
 
-setMeta('data_mode', 'live')
-setMeta('last_collection', capturedAt)
-
+if (replacingDemo) {
+  console.log('Demo history cleared. Live collection started.')
+}
 console.log(`Captured ${repos.length} repositories at ${capturedAt}.`)
 if (skipped.length) {
   console.log(`Skipped ${skipped.length}:`)
