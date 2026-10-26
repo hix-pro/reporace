@@ -1,0 +1,55 @@
+{
+  "name": "reporace",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "See which GitHub repositories are accelerating — not just which ones are already big.",
+  "keywords": [
+    "github",
+    "stars",
+    "trending",
+    "dashboard",
+    "typescript"
+  ],
+  "license": "MIT",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "dev": "concurrently -k -n api,web -c green,cyan \"npm:dev:server\" \"npm:dev:web\"",
+    "dev:server": "tsx watch server/index.ts",
+    "dev:web": "vite",
+    "build": "tsc --noEmit && vite build",
+    "start": "NODE_ENV=production tsx server/index.ts",
+    "typecheck": "tsc --noEmit",
+    "seed": "tsx scripts/seed.ts",
+    "demo": "tsx scripts/demo-data.ts",
+    "collect": "tsx scripts/collect.ts",
+    "db:reset": "rm -f data/reporace.db data/reporace.db-shm data/reporace.db-wal"
+  },
+  "dependencies": {
+    "date-fns": "^4.4.0",
+    "express": "^5.3.0",
+    "lucide-react": "^1.61.0",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "react-router-dom": "^7.18.4",
+    "recharts": "^3.10.1"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.3.3",
+    "@types/express": "^5.0.6",
+    "@types/node": "^26.6.5",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.1.2",
+    "concurrently": "^10.0.6",
+    "tailwindcss": "^4.3.3",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.5"
+  },
+  "allowScripts": {
+    "esbuild@0.28.2": true
+  }
+}
