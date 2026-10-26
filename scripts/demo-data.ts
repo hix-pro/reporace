@@ -45,30 +45,30 @@ const today = utcDay()
 transaction(() => {
   for (const repo of repos) {
     const random = mulberry32(hashString(repo.full_name))
-  const base = Math.max(2, Math.round(repo.stars * 0.0007))
-  const trend = 0.6 + random() * 1.1
-  const isBreakout = random() < 0.16
-  const spikeStart = Math.floor(30 - 3 - random() * 9)
-  const spikeMultiplier = isBreakout ? 4 + random() * 9 : 1.6 + random() * 2.4
+    const base = Math.max(2, Math.round(repo.stars * 0.0007))
+    const trend = 0.6 + random() * 1.1
+    const isBreakout = random() < 0.16
+    const spikeStart = Math.floor(30 - 3 - random() * 9)
+    const spikeMultiplier = isBreakout ? 4 + random() * 9 : 1.6 + random() * 2.4
 
-  const gains: number[] = []
-  for (let index = 0; index < 30; index += 1) {
-    const date = new Date(`${addDays(today, -(29 - index))}T00:00:00.000Z`)
-    const weekend = date.getUTCDay() === 0 || date.getUTCDay() === 6
-    const noise = 0.35 + random() * 1.3
-    const spike = index >= spikeStart ? spikeMultiplier : 1
-    const gain = Math.max(0, Math.round(base * trend * noise * (weekend ? 0.72 : 1) * spike))
-    gains.push(gain)
-  }
-
-  const cap = Math.max(1, Math.round(repo.stars * 0.12))
-  const total = gains.reduce((sum, gain) => sum + gain, 0)
-  if (total > cap) {
-    const scale = cap / total
-    for (let index = 0; index < gains.length; index += 1) {
-      gains[index] = Math.round(gains[index] * scale)
+    const gains: number[] = []
+    for (let index = 0; index < 30; index += 1) {
+      const date = new Date(`${addDays(today, -(29 - index))}T00:00:00.000Z`)
+      const weekend = date.getUTCDay() === 0 || date.getUTCDay() === 6
+      const noise = 0.35 + random() * 1.3
+      const spike = index >= spikeStart ? spikeMultiplier : 1
+      const gain = Math.max(0, Math.round(base * trend * noise * (weekend ? 0.72 : 1) * spike))
+      gains.push(gain)
     }
-  }
+
+    const cap = Math.max(1, Math.round(repo.stars * 0.12))
+    const total = gains.reduce((sum, gain) => sum + gain, 0)
+    if (total > cap) {
+      const scale = cap / total
+      for (let index = 0; index < gains.length; index += 1) {
+        gains[index] = Math.round(gains[index] * scale)
+      }
+    }
 
     for (let index = 0; index < gains.length; index += 1) {
       const day = addDays(today, -(29 - index))

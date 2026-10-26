@@ -140,7 +140,7 @@ export function HomePage() {
             </p>
           </div>
           <a
-            href={`/api/repos?range=${range}`}
+            href={`/api/repos?range=${range}&sort=${sort}&language=${encodeURIComponent(language)}&q=${encodeURIComponent(debouncedQuery)}`}
             target="_blank"
             rel="noreferrer"
             className="focus-ring self-start text-[11px] font-mono text-muted transition hover:text-lime sm:self-auto"
