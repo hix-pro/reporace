@@ -113,11 +113,18 @@ So RepoRace **collects its own history**. The first collection gives you a basel
 
 ### Collecting on a schedule
 
-A snapshot every 6 hours is plenty for daily charts. Example crontab entry:
+A snapshot every 6 hours is plenty for daily charts. The bundled
+`scripts/collect-scheduled.sh` wrapper sets a cron-friendly `PATH`, changes to
+the repository root, and timestamps each run:
 
 ```cron
-0 */6 * * * cd /path/to/reporace && /usr/bin/npm run collect >> /tmp/reporace-collect.log 2>&1
+0 */6 * * * cd /path/to/reporace && ./scripts/collect-scheduled.sh >> data/collect.log 2>&1
 ```
+
+Cron does not read your shell profile. The wrapper adds `~/.local/bin` and
+`~/.npm-global/bin`, so `gh auth token` works when the GitHub CLI is installed
+there. If `gh` is unavailable under cron, put `GITHUB_TOKEN` in `.env`; the
+collector loads it automatically. `data/collect.log` is git-ignored.
 
 ## API
 
