@@ -20,7 +20,10 @@ if (!tracked.length) {
 const fullNames = tracked.map((repo) => repo.full_name)
 console.log(`Collecting snapshots for ${fullNames.length} repositories...`)
 
-const { repos, skipped } = await fetchRepos(fullNames, 5)
+const { repos, skipped } = await fetchRepos(fullNames, 5).catch((error: unknown): never => {
+  console.error(error instanceof Error ? error.message : error)
+  process.exit(1)
+})
 
 if (!repos.length) {
   console.error('No snapshots collected. Existing data was left untouched.')

@@ -3,6 +3,9 @@ import type { RepoRecord } from './db.ts'
 
 const GRAPHQL_URL = 'https://api.github.com/graphql'
 
+// Delay before the single retry for transient server errors.
+const RETRY_DELAY_MS = 2_000
+
 const REPO_QUERY = `
   query Repo($owner: String!, $name: String!) {
     repository(owner: $owner, name: $name) {
@@ -84,8 +87,29 @@ export function getGitHubToken(): string {
   )
 }
 
-async function graphql<T>(query: string, variables: Record<string, string>): Promise<T> {
-  const response = await fetch(GRAPHQL_URL, {
+export class GitHubRateLimitError extends Error {
+  constructor(message: string) {
+    super(message)
+    this.name = 'GitHubRateLimitError'
+  }
+}
+
+function rateLimitReset(resetHeader: string | null): string {
+  const resetSeconds = Number(resetHeader)
+  if (!Number.isFinite(resetSeconds) || resetSeconds <= 0) return 'at an unknown time'
+  const resetAt = new Date(resetSeconds * 1000)
+  const minutes = Math.max(0, Math.round((resetAt.getTime() - Date.now()) / 60_000))
+  return `at ${resetAt.toISOString().slice(11, 16)} UTC (~${minutes} min from now)`
+}
+
+function isRateLimited(status: number, headers: Headers, body: string): boolean {
+  if (status !== 403 && status !== 429) return false
+  if (headers.get('x-ratelimit-remaining') === '0') return true
+  return body.toLowerCase().includes('rate limit')
+}
+
+async function postGraphQL(query: string, variables: Record<string, string>): Promise<Response> {
+  return fetch(GRAPHQL_URL, {
     method: 'POST',
     headers: {
       Authorization: `bearer ${getGitHubToken()}`,
@@ -95,14 +119,33 @@ async function graphql<T>(query: string, variables: Record<string, string>): Pro
     body: JSON.stringify({ query, variables }),
     signal: AbortSignal.timeout(25_000),
   })
+}
+
+async function graphql<T>(query: string, variables: Record<string, string>): Promise<T> {
+  let response = await postGraphQL(query, variables)
+
+  // Transient server errors get one retry before the repo is skipped.
+  if (response.status >= 500) {
+    await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY_MS))
+    response = await postGraphQL(query, variables)
+  }
 
   if (!response.ok) {
     const body = await response.text().catch(() => '')
+    if (isRateLimited(response.status, response.headers, body)) {
+      // A rate limit is a run-level failure, not a per-repo one: callers abort
+      // the whole run instead of skipping every repo and calling it a snapshot.
+      throw new GitHubRateLimitError(
+        `GitHub rate limit exhausted (HTTP ${response.status}), resets ${rateLimitReset(response.headers.get('x-ratelimit-reset'))}. Run aborted; existing data is untouched.`,
+      )
+    }
     throw new Error(`GitHub GraphQL ${response.status}: ${body.slice(0, 300)}`)
   }
 
   const payload = (await response.json()) as GraphQLResponse
-  if (payload.errors?.length) {
+  // GraphQL can return errors beside usable data. A repository in the payload
+  // still wins; only a missing one makes the response useless.
+  if (!payload.data?.repository && payload.errors?.length) {
     throw new Error(payload.errors.map((error) => error.message).join('; '))
   }
   if (!payload.data) {
@@ -174,6 +217,9 @@ export async function fetchRepos(
       try {
         repos.push(await fetchRepo(fullName))
       } catch (error) {
+        // A rate limit fails the whole run so the caller exits 1 with existing
+        // data untouched, instead of producing a mostly-empty snapshot.
+        if (error instanceof GitHubRateLimitError) throw error
         skipped.push({
           fullName,
           reason: error instanceof Error ? error.message : String(error),

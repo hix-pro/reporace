@@ -70,6 +70,12 @@ test('shortDay renders UTC calendar days, not local time', () => {
   assert.equal(shortDay('2026-01-09'), 'Jan 9')
 })
 
+test('shortDay degrades honestly for malformed days instead of throwing', () => {
+  assert.equal(shortDay('not-a-day'), 'not-a-day')
+  assert.equal(shortDay('2026-13-99'), '2026-13-99')
+  assert.equal(shortDay('2026-10-26'), 'Oct 26')
+})
+
 test('language colors fall back for null and unknown languages', () => {
   assert.equal(languageColor(null), '#5d6b7d')
   assert.equal(languageColor('TypeScript'), '#3178c6')

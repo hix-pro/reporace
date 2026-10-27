@@ -18,7 +18,10 @@ const fullNames = JSON.parse(readFileSync(seedPath, 'utf8')) as string[]
 
 console.log(`Seeding ${fullNames.length} repositories from ${seedPath}`)
 
-const { repos, skipped } = await fetchRepos(fullNames, 5)
+const { repos, skipped } = await fetchRepos(fullNames, 5).catch((error: unknown): never => {
+  console.error(error instanceof Error ? error.message : error)
+  process.exit(1)
+})
 
 if (!repos.length) {
   console.error('No repositories were seeded. Existing data was left untouched.')

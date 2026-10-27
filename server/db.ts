@@ -144,43 +144,73 @@ export function setMeta(key: string, value: string): void {
 }
 
 export function upsertRepo(repo: RepoRecord): void {
-  db.prepare(
-    `INSERT INTO repos (
-       id, owner, name, full_name, description, language, stars, forks,
-       open_issues, created_at, pushed_at, avatar_url, html_url, topics, updated_at
-     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-     ON CONFLICT(id) DO UPDATE SET
-       owner = excluded.owner,
-       name = excluded.name,
-       full_name = excluded.full_name,
-       description = excluded.description,
-       language = excluded.language,
-       stars = excluded.stars,
-       forks = excluded.forks,
-       open_issues = excluded.open_issues,
-       created_at = excluded.created_at,
-       pushed_at = excluded.pushed_at,
-       avatar_url = excluded.avatar_url,
-       html_url = excluded.html_url,
-       topics = excluded.topics,
-       updated_at = excluded.updated_at`,
-  ).run(
-    repo.id,
-    repo.owner,
-    repo.name,
-    repo.fullName,
-    repo.description,
-    repo.language,
-    repo.stars,
-    repo.forks,
-    repo.openIssues,
-    repo.createdAt,
-    repo.pushedAt,
-    repo.avatarUrl,
-    repo.htmlUrl,
-    JSON.stringify(repo.topics),
-    repo.updatedAt,
-  )
+  try {
+    db.prepare(
+      `INSERT INTO repos (
+         id, owner, name, full_name, description, language, stars, forks,
+         open_issues, created_at, pushed_at, avatar_url, html_url, topics, updated_at
+       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+       ON CONFLICT(id) DO UPDATE SET
+         owner = excluded.owner,
+         name = excluded.name,
+         full_name = excluded.full_name,
+         description = excluded.description,
+         language = excluded.language,
+         stars = excluded.stars,
+         forks = excluded.forks,
+         open_issues = excluded.open_issues,
+         created_at = excluded.created_at,
+         pushed_at = excluded.pushed_at,
+         avatar_url = excluded.avatar_url,
+         html_url = excluded.html_url,
+         topics = excluded.topics,
+         updated_at = excluded.updated_at`,
+    ).run(
+      repo.id,
+      repo.owner,
+      repo.name,
+      repo.fullName,
+      repo.description,
+      repo.language,
+      repo.stars,
+      repo.forks,
+      repo.openIssues,
+      repo.createdAt,
+      repo.pushedAt,
+      repo.avatarUrl,
+      repo.htmlUrl,
+      JSON.stringify(repo.topics),
+      repo.updatedAt,
+    )
+  } catch (error) {
+    // node:sqlite reports constraint failures with a generic ERR_SQLITE_ERROR
+    // code, so the stable SQLite message text is how this one is recognized.
+    if (
+      !(error instanceof Error) ||
+      !error.message.includes('UNIQUE constraint failed: repos.full_name')
+    ) {
+      throw error
+    }
+
+    const holder = db
+      .prepare('SELECT id, full_name FROM repos WHERE full_name = ?')
+      .get(repo.fullName) as { id: number; full_name: string } | undefined
+    const current = db.prepare('SELECT full_name FROM repos WHERE id = ?').get(repo.id) as
+      | { full_name: string }
+      | undefined
+
+    const subject =
+      current && current.full_name !== repo.fullName
+        ? `Cannot rename tracked repo #${repo.id} (${current.full_name}) to ${repo.fullName}`
+        : `Cannot track ${repo.fullName} as repo #${repo.id}`
+    const holderNote = holder
+      ? `repo #${holder.id} (${holder.full_name}) already tracks that name`
+      : 'another tracked repository already holds that name'
+
+    throw new Error(
+      `${subject}: ${holderNote}. Remove one of the two from data/seed-repos.json or stop tracking it, then re-run.`,
+    )
+  }
 }
 
 export function addDailyGain(repoId: number, day: string, delta: number): void {

@@ -51,6 +51,7 @@ export function timeAgo(iso: string | null): string {
 
 export function shortDay(day: string): string {
   const date = new Date(`${day}T00:00:00.000Z`)
+  if (Number.isNaN(date.getTime())) return day
   return new Intl.DateTimeFormat('en', { month: 'short', day: 'numeric', timeZone: 'UTC' }).format(
     date,
   )

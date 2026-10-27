@@ -38,11 +38,14 @@ if (!repos.length) {
   process.exit(1)
 }
 
-clearDailyGains()
-
 const today = utcDay()
+const trackingSince = addDays(today, -29)
 
 transaction(() => {
+  // Rows and labels commit together: a crash mid-run must never leave real
+  // history deleted, or demo rows on disk while data_mode still says live.
+  clearDailyGains()
+
   for (const repo of repos) {
     const random = mulberry32(hashString(repo.full_name))
     const base = Math.max(2, Math.round(repo.stars * 0.0007))
@@ -75,17 +78,17 @@ transaction(() => {
       setDailyGain(repo.id, day, gains[index])
     }
   }
-})
 
-setMeta('data_mode', 'demo')
-setMeta('demo_seeded_at', new Date().toISOString())
-setMeta('tracking_since', addDays(today, -29))
+  setMeta('data_mode', 'demo')
+  setMeta('demo_seeded_at', new Date().toISOString())
+  setMeta('tracking_since', trackingSince)
+})
 
 const top = [...repos].sort((a, b) => b.stars - a.stars).slice(0, 5)
 
 console.log(`Generated 30 days of demo history for ${repos.length} repositories.`)
 console.log('Data mode: demo. Run `npm run collect` to replace it with live snapshots.')
-console.log(`Tracking since: ${addDays(today, -29)}`)
+console.log(`Tracking since: ${trackingSince}`)
 for (const repo of top) {
   console.log(`  ${repo.full_name} — ${repo.stars.toLocaleString()} stars`)
 }
