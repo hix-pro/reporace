@@ -1,6 +1,6 @@
 {
   "name": "reporace",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "type": "module",
   "description": "See which GitHub repositories are accelerating — not just which ones are already big.",
