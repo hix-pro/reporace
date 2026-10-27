@@ -5,6 +5,7 @@
 RepoRace ranks repositories by **star velocity**: stars gained in the last 24 hours, 7 days, or 30 days. A new project gaining 800 stars a day can outrank a famous project that added 600, even if the famous one has 100× more stars.
 
 [![CI](https://github.com/hix-pro/reporace/actions/workflows/ci.yml/badge.svg)](https://github.com/hix-pro/reporace/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/hix-pro/reporace)](https://github.com/hix-pro/reporace/releases/latest)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Node 24+](https://img.shields.io/badge/node-24%2B-5fa04e.svg)](https://nodejs.org)
 
