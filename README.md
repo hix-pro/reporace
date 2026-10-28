@@ -203,6 +203,8 @@ reporace/
 
 _Part of the **[hix tools](https://github.com/hix-pro#readme)** suite — local-first, no backend, CI-ready._
 
+**Deep dive:** [Momentum, not stars: ranking GitHub repos by acceleration](https://hix-pro.github.io/blog/posts/07-reporace-momentum-not-stars.html)
+
 ## License
 
 MIT. See [LICENSE](LICENSE).
