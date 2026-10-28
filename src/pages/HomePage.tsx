@@ -16,6 +16,8 @@ import type {
   StatsResponse,
 } from '../types'
 
+const staticDemo = import.meta.env.VITE_STATIC_DEMO === '1'
+
 function LoadFailure({ message, onRetry }: { message: string; onRetry: () => void }) {
   return (
     <div className="card mt-4 flex flex-col items-center justify-center px-6 py-16 text-center">
@@ -160,12 +162,16 @@ export function HomePage() {
             </p>
           </div>
           <a
-            href={`/api/repos?range=${range}&sort=${sort}&language=${encodeURIComponent(language)}&q=${encodeURIComponent(debouncedQuery)}`}
+            href={
+              staticDemo
+                ? `${import.meta.env.BASE_URL}demo-data.json`
+                : `/api/repos?range=${range}&sort=${sort}&language=${encodeURIComponent(language)}&q=${encodeURIComponent(debouncedQuery)}`
+            }
             target="_blank"
             rel="noreferrer"
             className="focus-ring self-start text-[11px] font-mono text-muted transition hover:text-lime sm:self-auto"
           >
-            view JSON →
+            {staticDemo ? 'demo data →' : 'view JSON →'}
           </a>
         </div>
 

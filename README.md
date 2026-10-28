@@ -11,6 +11,8 @@ RepoRace ranks repositories by **star velocity**: stars gained in the last 24 ho
 
 ![RepoRace leaderboard](docs/screenshot.png)
 
+**Live demo:** [hix-pro.github.io/reporace](https://hix-pro.github.io/reporace/) — the public build runs on clearly labeled demo history, not a live collector.
+
 The screenshot above is running with **labeled demo history** (orange `DEMO DATA` badge). Live data starts empty and fills in as snapshots are collected.
 
 ---
@@ -81,6 +83,19 @@ RepoRace never silently presents generated numbers as real.
 | `live` | green `LIVE` | Daily deltas came from actual snapshots collected by RepoRace. |
 
 `npm run demo` sets `data_mode=demo`. `npm run collect` **deletes the demo history**, switches to live mode, and records a real snapshot. There is no path that quietly upgrades demo rows into live rows.
+
+### Static demo build
+
+The public Pages demo is exported from the same SQLite data:
+
+```bash
+npm run seed
+npm run demo
+npm run export:static
+npm run build:demo
+```
+
+`export:static` writes `public/demo-data.json` (committed, so CI does not need GitHub access). `build:demo` sets the `/reporace/` base path and copies `index.html` to `404.html` for client-side routes.
 
 ## How it works
 

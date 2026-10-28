@@ -2,6 +2,8 @@ import { Link } from 'react-router-dom'
 import { GithubIcon } from './GithubIcon'
 import { Logo } from './Logo'
 
+const staticDemo = import.meta.env.VITE_STATIC_DEMO === '1'
+
 export function Footer() {
   return (
     <footer className="mt-20 border-t border-white/[0.07]">
@@ -23,9 +25,21 @@ export function Footer() {
           <Link className="transition hover:text-white" to="/#how-it-works">
             How it works
           </Link>
-          <a className="transition hover:text-white" href="/api/repos?range=7d" target="_blank" rel="noreferrer">
-            JSON API
-          </a>
+          {!staticDemo && (
+            <a className="transition hover:text-white" href="/api/repos?range=7d" target="_blank" rel="noreferrer">
+              JSON API
+            </a>
+          )}
+          {staticDemo && (
+            <a
+              className="transition hover:text-white"
+              href={`${import.meta.env.BASE_URL}demo-data.json`}
+              target="_blank"
+              rel="noreferrer"
+            >
+              Demo data
+            </a>
+          )}
           <a
             className="inline-flex items-center gap-1.5 transition hover:text-white"
             href="https://github.com/hix-pro/reporace"

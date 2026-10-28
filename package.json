@@ -3,7 +3,7 @@
   "version": "0.1.1",
   "private": true,
   "type": "module",
-  "description": "See which GitHub repositories are accelerating — not just which ones are already big.",
+  "description": "See which GitHub repositories are accelerating \u2014 not just which ones are already big.",
   "keywords": [
     "github",
     "stars",
@@ -26,7 +26,9 @@
     "seed": "tsx scripts/seed.ts",
     "demo": "tsx scripts/demo-data.ts",
     "collect": "tsx scripts/collect.ts",
-    "db:reset": "rm -f data/reporace.db data/reporace.db-shm data/reporace.db-wal"
+    "db:reset": "rm -f data/reporace.db data/reporace.db-shm data/reporace.db-wal",
+    "export:static": "tsx scripts/export-static.ts",
+    "build:demo": "npm run typecheck && VITE_STATIC_DEMO=1 VITE_BASE=/reporace/ vite build && node scripts/copy-demo.mjs"
   },
   "dependencies": {
     "date-fns": "^4.4.0",

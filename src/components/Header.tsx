@@ -2,6 +2,8 @@ import { Link } from 'react-router-dom'
 import { GithubIcon } from './GithubIcon'
 import { Logo } from './Logo'
 
+const staticDemo = import.meta.env.VITE_STATIC_DEMO === '1'
+
 export function Header() {
   return (
     <header className="sticky top-0 z-50 border-b border-white/[0.07] bg-ink/80 backdrop-blur-xl">
@@ -26,14 +28,16 @@ export function Header() {
           >
             How it works
           </Link>
-          <a
-            href="/api/repos?range=7d"
-            className="focus-ring hidden rounded-lg px-3 py-2 font-mono text-xs transition hover:bg-white/5 hover:text-white sm:block"
-            target="_blank"
-            rel="noreferrer"
-          >
-            API
-          </a>
+          {!staticDemo && (
+            <a
+              href="/api/repos?range=7d"
+              className="focus-ring hidden rounded-lg px-3 py-2 font-mono text-xs transition hover:bg-white/5 hover:text-white sm:block"
+              target="_blank"
+              rel="noreferrer"
+            >
+              API
+            </a>
+          )}
           <a
             href="https://github.com/hix-pro/reporace"
             className="focus-ring ml-1 grid h-9 w-9 place-items-center rounded-lg border border-white/10 text-muted transition hover:border-white/20 hover:bg-white/5 hover:text-white"
